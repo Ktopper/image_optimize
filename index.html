@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <button onclick="resizeSingleImage()">Resize Single Image</button>
+    <button onclick="resizeAllImages()">Resize All Images</button>
+    <button onclick="resizeLargeImages()">Resize Large Images</button>
+    <script>
+      const { ipcRenderer } = require('electron');
+      
+      function resizeSingleImage() {
+        ipcRenderer.send('resize-single-image');
+      }
+
+      function resizeAllImages() {
+        ipcRenderer.send('resize-all-images');
+      }
+
+      function resizeLargeImages() {
+        ipcRenderer.send('resize-large-images');
+      }
+    </script>
+  </body>
+</html>
