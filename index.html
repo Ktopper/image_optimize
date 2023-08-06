@@ -1,23 +1,42 @@
 <!DOCTYPE html>
 <html>
-  <body>
+
+<head>
+  <title>Image Optimizer</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+  <h1>Image optimizer</h1>
+  <div class="button-block">
+    <P> Resizes a Single image by an inputed %</P>
     <button onclick="resizeSingleImage()">Resize Single Image</button>
+  </div>
+  <div class="button-block">
+    <p> Resizes All images in folder by an inputed %</p>
     <button onclick="resizeAllImages()">Resize All Images</button>
+  </div>
+  <div class="button-block">
+    <p>Resizes All images in folder that exceed size theresholds</p>
     <button onclick="resizeLargeImages()">Resize Large Images</button>
-    <script>
-      const { ipcRenderer } = require('electron');
-      
-      function resizeSingleImage() {
-        ipcRenderer.send('resize-single-image');
-      }
+  </div>
 
-      function resizeAllImages() {
-        ipcRenderer.send('resize-all-images');
-      }
+  <script>
 
-      function resizeLargeImages() {
-        ipcRenderer.send('resize-large-images');
-      }
-    </script>
-  </body>
+    const { ipcRenderer } = require('electron');
+
+    function resizeSingleImage() {
+      ipcRenderer.send('resize-single-image');
+    }
+
+    function resizeAllImages() {
+      ipcRenderer.send('resize-all-images');
+    }
+
+    function resizeLargeImages() {
+      ipcRenderer.send('resize-large-images');
+    }
+  </script>
+</body>
+
 </html>
