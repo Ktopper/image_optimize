@@ -3,6 +3,7 @@
     text-align: center;
     font-family: 'Geologica', sans-serif;
 
+
 box-sizing: border-box;
 font-family: 'IBM Plex Serif', serif;
 font-family: 'Murecho', sans-serif;
@@ -13,9 +14,23 @@ font-family: 'Raleway', sans-serif;
 font-family: 'Roboto', sans-serif;
 font-family: 'Roboto Mono', monospace;
  font-family: 'Sora', sans-serif; 
+
+ --text-shadow: 0px 0px 5px rgba(0, 0, 0, 0.7),
+ -2px -2px 10px rgba(0, 0, 0, 0.2), 2px 2px 10px rgba(0, 0, 0, 0.2);
+--text-deep-shadow: 2px 2px 10px rgba(0, 0, 0, 0.6),
+ -2px -2px 10px rgba(0, 0, 0, 0.5), 2px 2px 10px rgba(0, 0, 0, 0.5);
+
    
  }
+
+ body{
+   background-image: url(./images/image_optimizer_2bkg.png);
+  background-size: cover;
+  background-repeat: no-repeat;
+   background-position: center;
+ }
  button{
+   background-color: rgb(196, 226, 252);
     margin: auto;
     margin-bottom: 20px;
     border-radius: 10px;
@@ -24,6 +39,7 @@ font-family: 'Red Hat Display', sans-serif;
  }
 
  .button-block{
+   background-color: rgba(193, 206, 250, 0.938);
     border-radius: 20px;
     padding-inline-start: 20px;
     margin:auto;
@@ -31,4 +47,8 @@ font-family: 'Red Hat Display', sans-serif;
     width: 500px;
     height: fit-content;
     border: solid 3px black;
+ }
+ h1{
+   color: red;
+   text-shadow: var(--text-deep-shadow);
  }
