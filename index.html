@@ -1,42 +1,59 @@
 <!DOCTYPE html>
 <html>
+  <head>
+    <title>Image Optimizer</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
 
-<head>
-  <title>Image Optimizer</title>
-  <link rel="stylesheet" href="./styles.css">
-</head>
+  <body>
+    <h1>Image optimizer</h1>
+    <div class="button-block">
+      <p>Resizes a Single image by an inputed %</p>
+      <button onclick="resizeSingleImage()">Resize Single Image</button>
+    </div>
+    <div class="button-block">
+      <p>Resizes All images in folder by an inputed %</p>
+      <button onclick="resizeAllImages()">Resize All Images</button>
+    </div>
+    <div class="button-block">
+      <p>Resizes All images in folder that exceed size theresholds</p>
+      <button onclick="resizeLargeImages()">Resize Large Images</button>
+    </div>
+    <div class="button-block">
+      <p>Convert a single image to webp format</p>
+      <button onclick="convertSingleImageToWebP()">
+        Convert Single Image to WebP
+      </button>
+    </div>
 
-<body>
-  <h1>Image optimizer</h1>
-  <div class="button-block">
-    <P> Resizes a Single image by an inputed %</P>
-    <button onclick="resizeSingleImage()">Resize Single Image</button>
-  </div>
-  <div class="button-block">
-    <p> Resizes All images in folder by an inputed %</p>
-    <button onclick="resizeAllImages()">Resize All Images</button>
-  </div>
-  <div class="button-block">
-    <p>Resizes All images in folder that exceed size theresholds</p>
-    <button onclick="resizeLargeImages()">Resize Large Images</button>
-  </div>
+    <div class="button-block">
+      <p>Convert all images in a folder to webp format</p>
+      <button onclick="convertAllImagesToWebP()">
+        Convert All Images to WebP
+      </button>
+    </div>
 
-  <script>
+    <script>
+      const { ipcRenderer } = require("electron");
 
-    const { ipcRenderer } = require('electron');
+      function resizeSingleImage() {
+        ipcRenderer.send("resize-single-image");
+      }
 
-    function resizeSingleImage() {
-      ipcRenderer.send('resize-single-image');
-    }
+      function resizeAllImages() {
+        ipcRenderer.send("resize-all-images");
+      }
 
-    function resizeAllImages() {
-      ipcRenderer.send('resize-all-images');
-    }
+      function resizeLargeImages() {
+        ipcRenderer.send("resize-large-images");
+      }
+      function convertSingleImageToWebP() {
+        ipcRenderer.send("convert-single-image-to-webp");
+      }
 
-    function resizeLargeImages() {
-      ipcRenderer.send('resize-large-images');
-    }
-  </script>
-</body>
-
+      function convertAllImagesToWebP() {
+        ipcRenderer.send("convert-all-images-to-webp");
+      }
+    </script>
+  </body>
 </html>

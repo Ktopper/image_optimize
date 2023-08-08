@@ -185,3 +185,37 @@ ipcMain.on('resize-all-images', (event) => {
 ipcMain.on('resize-large-images', (event) => {
   selectAndResizeLargeImages()
 })
+ipcMain.on('convert-single-image-to-webp', async (event) => {
+  const { filePaths } = await dialog.showOpenDialog({
+      properties: ['openFile'],
+      filters: [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }]
+  });
+
+  filePaths.forEach(async filePath => {
+      const outputPath = path.join(path.dirname(filePath), path.basename(filePath, path.extname(filePath)) + '.webp');
+      await sharp(filePath).toFormat('webp').toFile(outputPath);
+  });
+});
+
+ipcMain.on('convert-all-images-to-webp', async (event) => {
+  const { filePaths: directoryPaths } = await dialog.showOpenDialog({
+      properties: ['openDirectory']
+  });
+
+  for (let dirPath of directoryPaths) {
+      fs.readdir(dirPath, (err, files) => {
+          if (err) {
+              console.log('Unable to scan directory: ' + err);
+              return;
+          }
+
+          files.forEach(async file => {
+              if (['.jpg', '.png', '.gif'].includes(path.extname(file).toLowerCase())) {
+                  const filePath = path.join(dirPath, file);
+                  const outputPath = path.join(dirPath, path.basename(file, path.extname(file)) + '.webp');
+                  await sharp(filePath).toFormat('webp').toFile(outputPath);
+              }
+          });
+      });
+  }
+});
