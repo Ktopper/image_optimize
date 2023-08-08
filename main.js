@@ -173,6 +173,67 @@ async function selectAndResizeLargeImages() {
     })
   }
 }
+async function resizeWebpImages() {
+  try {
+    const { filePaths: directoryPaths } = await dialog.showOpenDialog({
+      properties: ['openDirectory']
+    });
+
+    if (!directoryPaths) return;  // Handle case where the user closes the dialog
+
+    const percentage = await prompt({
+      title: 'Enter percentage',
+      label: 'Enter the percentage (in %) to resize the webp images to:',
+      value: '80',
+      inputAttrs: {
+        type: 'number'
+      },
+      type: 'input'
+    });
+
+    if (isNaN(percentage)) {
+      // Handle invalid input, maybe show a dialog or log it
+      console.error("Invalid percentage value provided");
+      return;
+    }
+
+    for (let dirPath of directoryPaths) {
+      fs.readdir(dirPath, (err, files) => {
+        if (err) {
+          console.error('Unable to scan directory: ' + err);
+          return;
+        }
+
+        files.forEach(async (file) => {
+          if (path.extname(file).toLowerCase() === '.webp') {
+            const filePath = path.join(dirPath, file);
+            
+            // Rename the original file to have "old_" prefix
+            const oldFilePath = path.join(dirPath, 'old_' + file);
+            fs.renameSync(filePath, oldFilePath);
+
+            // Get image metadata
+            const imageMetadata = await sharp(oldFilePath).metadata();
+
+            // Resize the image and save it with its original name
+            await sharp(oldFilePath)
+              .resize({ width: Math.round(imageMetadata.width * percentage / 100) })
+              .toFormat('webp')
+              .toFile(filePath);
+          }
+        });
+      });
+    }
+  } catch (error) {
+    console.error("Error resizing webp images:", error);
+  }
+}
+
+
+
+ipcMain.on('resize-webp-images', (event) => {
+  resizeWebpImages()
+})
 
 ipcMain.on('resize-single-image', (event) => {
   selectAndResizeSingleImage()

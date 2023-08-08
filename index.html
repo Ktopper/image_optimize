@@ -32,28 +32,40 @@
         Convert All Images to WebP
       </button>
     </div>
-
+    <div class="button-block">
+      <p>resize webp in a folder</p>
+      <button id="resizeWebpButton">Resize .webp Images</button>
+    </div>
+   
     <script>
       const { ipcRenderer } = require("electron");
-
+    
       function resizeSingleImage() {
         ipcRenderer.send("resize-single-image");
       }
-
+    
       function resizeAllImages() {
         ipcRenderer.send("resize-all-images");
       }
-
+    
       function resizeLargeImages() {
         ipcRenderer.send("resize-large-images");
       }
+    
       function convertSingleImageToWebP() {
         ipcRenderer.send("convert-single-image-to-webp");
       }
-
+    
       function convertAllImagesToWebP() {
         ipcRenderer.send("convert-all-images-to-webp");
       }
+    
+      function resizeWebpImages() {
+        ipcRenderer.send("resize-webp-images");
+      }
+    
+      document.getElementById('resizeWebpButton').addEventListener('click', resizeWebpImages);
     </script>
+    
   </body>
 </html>
