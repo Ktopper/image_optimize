@@ -1,24 +1,42 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron')
-const sharp = require('sharp')
-const fs = require('fs')
-const path = require('path')
-const prompt = require('electron-prompt')
+const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const sharp = require('sharp');
+const fs = require('fs');
+const path = require('path');
+const prompt = require('electron-prompt');
 
-function createWindow () {
+function createWindow() {
   const win = new BrowserWindow({
     width: 800,
     height: 600,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
-    }
-  })
+    },
+  });
 
-  win.loadFile('index.html')
+  win.loadFile('index.html');
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(createWindow);
 
+async function processImage(filePath, outputPath, percentage, format) {
+  try {
+    const imageMetadata = await sharp(filePath).metadata();
+    const outputFormat = format || imageMetadata.format;
+
+    const options = {};
+    if (['png', 'webp'].includes(outputFormat)) {
+      options.alphaQuality = 100;
+    }
+
+    await sharp(filePath)
+      .resize({ width: Math.round(imageMetadata.width * percentage / 100) })
+      .toFormat(outputFormat, options)
+      .toFile(outputPath);
+  } catch (error) {
+    console.error("Error processing image:", error);
+  }
+}
 async function selectAndResizeImages() {
   const { filePaths: directoryPaths } = await dialog.showOpenDialog({
     properties: ['openDirectory']
@@ -232,51 +250,66 @@ async function resizeWebpImages() {
 
 
 ipcMain.on('resize-webp-images', (event) => {
-  resizeWebpImages()
-})
+  resizeWebpImages();
+});
 
 ipcMain.on('resize-single-image', (event) => {
-  selectAndResizeSingleImage()
-})
+  selectAndResizeSingleImage();
+});
 
 ipcMain.on('resize-all-images', (event) => {
-  selectAndResizeImages()
-})
+  selectAndResizeImages();
+});
 
 ipcMain.on('resize-large-images', (event) => {
-  selectAndResizeLargeImages()
-})
+  selectAndResizeLargeImages();
+});
+
 ipcMain.on('convert-single-image-to-webp', async (event) => {
   const { filePaths } = await dialog.showOpenDialog({
-      properties: ['openFile'],
-      filters: [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }]
+    properties: ['openFile'],
+    filters: [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }],
   });
 
   filePaths.forEach(async filePath => {
-      const outputPath = path.join(path.dirname(filePath), path.basename(filePath, path.extname(filePath)) + '.webp');
-      await sharp(filePath).toFormat('webp').toFile(outputPath);
+    const outputPath = path.join(path.dirname(filePath), path.basename(filePath, path.extname(filePath)) + '.webp');
+    await processImage(filePath, outputPath, 100, 'webp');
   });
 });
 
 ipcMain.on('convert-all-images-to-webp', async (event) => {
   const { filePaths: directoryPaths } = await dialog.showOpenDialog({
-      properties: ['openDirectory']
+    properties: ['openDirectory'],
   });
 
   for (let dirPath of directoryPaths) {
-      fs.readdir(dirPath, (err, files) => {
-          if (err) {
-              console.log('Unable to scan directory: ' + err);
-              return;
-          }
+    fs.readdir(dirPath, (err, files) => {
+      if (err) {
+        console.log('Unable to scan directory: ' + err);
+        return;
+      }
 
-          files.forEach(async file => {
-              if (['.jpg', '.png', '.gif'].includes(path.extname(file).toLowerCase())) {
-                  const filePath = path.join(dirPath, file);
-                  const outputPath = path.join(dirPath, path.basename(file, path.extname(file)) + '.webp');
-                  await sharp(filePath).toFormat('webp').toFile(outputPath);
-              }
-          });
+      
+      files.forEach(async file => {
+        if (['.jpg', '.png', '.gif'].includes(path.extname(file).toLowerCase())) {
+          const filePath = path.join(dirPath, file);
+          const outputPath = path.join(dirPath, path.basename(file, path.extname(file)) + '.webp');
+          await processImage(filePath, outputPath, 100, 'webp');
+        }
       });
+    });
+  }
+});
+
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+app.on('activate', () => {
+  if (BrowserWindow.getAllWindows().length === 0) {
+    createWindow();
   }
 });
