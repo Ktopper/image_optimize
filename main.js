@@ -288,7 +288,6 @@ ipcMain.on('convert-all-images-to-webp', async (event) => {
         console.log('Unable to scan directory: ' + err);
         return;
       }
-
       
       files.forEach(async file => {
         if (['.jpg', '.png', '.gif'].includes(path.extname(file).toLowerCase())) {
