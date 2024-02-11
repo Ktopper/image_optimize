@@ -23,7 +23,12 @@
       </button>
       <button id="resizeWebpButton"><b>Resize</b> .Webp Images</button>
     </div>
-   
+    <div class="button-block">
+      <h2>Make Image Square</h2>
+      <button id="makeSquare700Button">Make 700x700 Square Image</button>
+      <button id="makeSquareButton">Make <b>Square</b> Image</button>
+  </div>
+
     <script>
       const { ipcRenderer } = require("electron");
     
@@ -52,6 +57,14 @@
       }
     
       document.getElementById('resizeWebpButton').addEventListener('click', resizeWebpImages);
+
+      document.getElementById('makeSquareButton').addEventListener('click', () => {
+    ipcRenderer.send('make-image-square');
+    console.log('Make square button clicked');
+    document.getElementById('makeSquare700Button').addEventListener('click', () => {
+  ipcRenderer.send('make-image-square-700');
+});
+  });
     </script>
     
   </body>

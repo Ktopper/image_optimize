@@ -82,6 +82,39 @@ async function selectAndResizeImages() {
     })
   }
 }
+async function selectAndMakeImageSquare() {
+  const { filePaths } = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'Images', extensions: ['jpg', 'png', 'gif', 'webp'] }]
+  });
+
+  if (filePaths && filePaths.length > 0) {
+    const filePath = filePaths[0]; // Assuming single selection
+    makeImageSquare(filePath);
+  }
+}
+
+async function makeImageSquare(filePath) {
+  try {
+    const metadata = await sharp(filePath).metadata();
+    const size = Math.min(metadata.width, metadata.height);
+
+    const outputPath = path.join(path.dirname(filePath), `square_${path.basename(filePath)}`);
+    
+    await sharp(filePath)
+      .extract({
+        width: size,
+        height: size,
+        left: (metadata.width - size) / 2,
+        top: (metadata.height - size) / 2,
+      })
+      .toFile(outputPath);
+
+    console.log(`Square image created at ${outputPath}`);
+  } catch (error) {
+    console.error('Error making image square:', error);
+  }
+}
 
 async function selectAndResizeSingleImage() {
   const { filePaths } = await dialog.showOpenDialog({
@@ -114,6 +147,50 @@ async function selectAndResizeSingleImage() {
       .resize({ width: Math.round(imageMetadata.width * percentage / 100) })
       .toFormat('jpeg')
       .toFile(filePath)
+  }
+}
+
+
+async function selectAndMakeImageSquare700() {
+  const { filePaths } = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'Images', extensions: ['jpg', 'png', 'gif', 'webp'] }]
+  });
+
+  if (filePaths && filePaths.length > 0) {
+    const filePath = filePaths[0];
+    makeImageSquareAndResize(filePath);
+  }
+}
+
+async function makeImageSquareAndResize(filePath) {
+  try {
+    const metadata = await sharp(filePath).metadata();
+    const size = Math.min(metadata.width, metadata.height);
+    const targetSize = 700;
+    let extractSize = size;
+
+    // If the original square size is smaller than 700px, do not scale it.
+    // This logic assumes you want to maintain the original size if it's smaller than 700px.
+    if (size > targetSize) {
+      extractSize = targetSize;
+    }
+
+    const outputPath = path.join(path.dirname(filePath), `square_700_${path.basename(filePath)}`);
+    
+    let image = sharp(filePath)
+      .extract({ width: size, height: size, left: (metadata.width - size) / 2, top: (metadata.height - size) / 2 });
+
+    // Only resize if the extracted square is larger than 700px
+    if (size > targetSize) {
+      image = image.resize(targetSize, targetSize);
+    }
+
+    await image.toFormat('webp').toFile(outputPath);n
+
+    console.log(`700x700 square image created at ${outputPath}`);
+  } catch (error) {
+    console.error('Error making 700x700 square image:', error);
   }
 }
 
@@ -245,9 +322,16 @@ async function resizeWebpImages() {
   } catch (error) {
     console.error("Error resizing webp images:", error);
   }
-}
+} 
 
+ipcMain.on('make-image-square-700', (event) => {
+  selectAndMakeImageSquare700();
+});
 
+ipcMain.on('make-image-square', (event) => {
+  console.log('Received make-image-square event');
+  selectAndMakeImageSquare();
+});
 
 ipcMain.on('resize-webp-images', (event) => {
   resizeWebpImages();
