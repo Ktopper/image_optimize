@@ -115,7 +115,37 @@ async function makeImageSquare(filePath) {
     console.error('Error making image square:', error);
   }
 }
+// Favicon
+async function selectAndCreateFavicon() {
+  const { filePaths } = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'Images', extensions: ['jpg', 'png', 'gif', 'webp'] }]
+  });
 
+  if (filePaths && filePaths.length > 0) {
+    const filePath = filePaths[0];
+    createFavicon(filePath);
+  }
+}
+async function createFavicon(filePath) {
+  try {
+    const metadata = await sharp(filePath).metadata();
+    const size = Math.min(metadata.width, metadata.height);
+    const targetSize = 50;
+
+    const outputPath = path.join(path.dirname(filePath), `favicon_${path.basename(filePath, path.extname(filePath))}.png`);
+
+    await sharp(filePath)
+      .extract({ width: size, height: size, left: (metadata.width - size) / 2, top: (metadata.height - size) / 2 })
+      .resize(targetSize, targetSize)
+      .toFormat('png')
+      .toFile(outputPath);
+
+    console.log(`Favicon created at ${outputPath}`);
+  } catch (error) {
+    console.error('Error creating favicon:', error);
+  }
+}
 async function selectAndResizeSingleImage() {
   const { filePaths } = await dialog.showOpenDialog({
     properties: ['openFile'],
@@ -331,6 +361,10 @@ ipcMain.on('make-image-square-700', (event) => {
 ipcMain.on('make-image-square', (event) => {
   console.log('Received make-image-square event');
   selectAndMakeImageSquare();
+});
+
+ipcMain.on('create-favicon', (event) => {
+  selectAndCreateFavicon();
 });
 
 ipcMain.on('resize-webp-images', (event) => {
