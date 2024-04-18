@@ -66,7 +66,7 @@ async function selectAndResizeImages() {
       } 
 
       files.forEach(async (file) => {
-        if (['.jpg', '.png', '.gif'].includes(path.extname(file).toLowerCase())) {
+        if (['.jpg', '.jpeg', '.png', '.gif'].includes(path.extname(file).toLowerCase())) {
           const filePath = path.join(dirPath, file)
           const imageMetadata = await sharp(filePath).metadata()
 
@@ -277,7 +277,7 @@ async function selectAndResizeLargeImages() {
       } 
 
       files.forEach(async (file) => {
-        if (['.jpg', '.png', '.gif'].includes(path.extname(file).toLowerCase())) {
+        if (['.jpg', '.jpeg', '.png', '.gif'].includes(path.extname(file).toLowerCase())) {
           const filePath = path.join(dirPath, file)
           const stats = fs.statSync(filePath);
 
@@ -408,7 +408,7 @@ ipcMain.on('convert-all-images-to-webp', async (event) => {
       }
       
       files.forEach(async file => {
-        if (['.jpg', '.png', '.gif'].includes(path.extname(file).toLowerCase())) {
+        if (['.jpg', '.jpeg', '.png', '.gif'].includes(path.extname(file).toLowerCase())) {
           const filePath = path.join(dirPath, file);
           const outputPath = path.join(dirPath, path.basename(file, path.extname(file)) + '.webp');
           await processImage(filePath, outputPath, 100, 'webp');
