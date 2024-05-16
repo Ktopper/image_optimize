@@ -26,11 +26,7 @@ async function processImage(filePath, outputPath, percentage, format) {
 
     const options = {};
     if (['png', 'webp'].includes(outputFormat)) {
-      options.quality = 80; // Adjust quality for WebP
-    }
-
-    if (outputFormat === 'png') {
-      options.compressionLevel = 9; // Adjust compression level for PNG (0-9)
+      options.alphaQuality = 100;
     }
 
     await sharp(filePath)
@@ -41,11 +37,10 @@ async function processImage(filePath, outputPath, percentage, format) {
     console.error("Error processing image:", error);
   }
 }
-
 async function selectAndResizeImages() {
   const { filePaths: directoryPaths } = await dialog.showOpenDialog({
     properties: ['openDirectory']
-  });
+  })
 
   const percentage = await prompt({
     title: 'Enter percentage',
@@ -55,39 +50,38 @@ async function selectAndResizeImages() {
       type: 'number'
     },
     type: 'input'
-  });
+  })
 
   if (isNaN(percentage)) {
     // TODO: Handle invalid input
-    return;
+    return
   }
 
   for (let dirPath of directoryPaths) {
     fs.readdir(dirPath, (err, files) => {
       if (err) {
         // TODO: Handle error
-        console.log('Unable to scan directory: ' + err);
-        return;
-      }
+        console.log('Unable to scan directory: ' + err)
+        return
+      } 
 
       files.forEach(async (file) => {
         if (['.jpg', '.jpeg', '.png', '.gif'].includes(path.extname(file).toLowerCase())) {
-          const filePath = path.join(dirPath, file);
-          const imageMetadata = await sharp(filePath).metadata();
+          const filePath = path.join(dirPath, file)
+          const imageMetadata = await sharp(filePath).metadata()
 
-          const outputPath = path.join(dirPath, 'big_' + file);
-          fs.renameSync(filePath, outputPath);
+          const outputPath = path.join(dirPath, 'big_' + file)
+          fs.renameSync(filePath, outputPath)
 
           await sharp(outputPath)
             .resize({ width: Math.round(imageMetadata.width * percentage / 100) })
             .toFormat('jpeg')
-            .toFile(filePath);
+            .toFile(filePath)
         }
-      });
-    });
+      })
+    })
   }
 }
-
 async function selectAndMakeImageSquare() {
   const { filePaths } = await dialog.showOpenDialog({
     properties: ['openFile'],
@@ -121,7 +115,6 @@ async function makeImageSquare(filePath) {
     console.error('Error making image square:', error);
   }
 }
-
 // Favicon
 async function selectAndCreateFavicon() {
   const { filePaths } = await dialog.showOpenDialog({
@@ -134,7 +127,6 @@ async function selectAndCreateFavicon() {
     createFavicon(filePath);
   }
 }
-
 async function createFavicon(filePath) {
   try {
     const metadata = await sharp(filePath).metadata();
@@ -154,12 +146,11 @@ async function createFavicon(filePath) {
     console.error('Error creating favicon:', error);
   }
 }
-
 async function selectAndResizeSingleImage() {
   const { filePaths } = await dialog.showOpenDialog({
     properties: ['openFile'],
     filters: [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }]
-  });
+  })
 
   const percentage = await prompt({
     title: 'Enter percentage',
@@ -169,25 +160,26 @@ async function selectAndResizeSingleImage() {
       type: 'number'
     },
     type: 'input'
-  });
+  })
 
   if (isNaN(percentage)) {
     // TODO: Handle invalid input
-    return;
+    return
   }
 
   for (let filePath of filePaths) {
-    const imageMetadata = await sharp(filePath).metadata();
-    const outputPath = path.join(path.dirname(filePath), 'big_' + path.basename(filePath));
+    const imageMetadata = await sharp(filePath).metadata()
+    const outputPath = path.join(path.dirname(filePath), 'big_' + path.basename(filePath))
     
-    fs.renameSync(filePath, outputPath);
+    fs.renameSync(filePath, outputPath)
     
     await sharp(outputPath)
       .resize({ width: Math.round(imageMetadata.width * percentage / 100) })
       .toFormat('jpeg')
-      .toFile(filePath);
+      .toFile(filePath)
   }
 }
+
 
 async function selectAndMakeImageSquare700() {
   const { filePaths } = await dialog.showOpenDialog({
@@ -208,6 +200,8 @@ async function makeImageSquareAndResize(filePath) {
     const targetSize = 700;
     let extractSize = size;
 
+    // If the original square size is smaller than 700px, do not scale it.
+    // This logic assumes you want to maintain the original size if it's smaller than 700px.
     if (size > targetSize) {
       extractSize = targetSize;
     }
@@ -217,11 +211,12 @@ async function makeImageSquareAndResize(filePath) {
     let image = sharp(filePath)
       .extract({ width: size, height: size, left: (metadata.width - size) / 2, top: (metadata.height - size) / 2 });
 
+    // Only resize if the extracted square is larger than 700px
     if (size > targetSize) {
       image = image.resize(targetSize, targetSize);
     }
 
-    await image.toFormat('webp').toFile(outputPath);
+    await image.toFormat('webp').toFile(outputPath);n
 
     console.log(`700x700 square image created at ${outputPath}`);
   } catch (error) {
@@ -229,10 +224,11 @@ async function makeImageSquareAndResize(filePath) {
   }
 }
 
+
 async function selectAndResizeLargeImages() {
   const { filePaths: directoryPaths } = await dialog.showOpenDialog({
     properties: ['openDirectory']
-  });
+  })
 
   const percentage = await prompt({
     title: 'Enter percentage',
@@ -242,7 +238,7 @@ async function selectAndResizeLargeImages() {
       type: 'number'
     },
     type: 'input'
-  });
+  })
 
   const sizeThreshold = await prompt({
     title: 'Enter size threshold',
@@ -252,7 +248,7 @@ async function selectAndResizeLargeImages() {
       type: 'number'
     },
     type: 'input'
-  });
+  })
 
   const dimensionThreshold = await prompt({
     title: 'Enter dimension threshold',
@@ -262,52 +258,53 @@ async function selectAndResizeLargeImages() {
       type: 'number'
     },
     type: 'input'
-  });
+  })
 
   if (isNaN(percentage) || isNaN(sizeThreshold) || isNaN(dimensionThreshold)) {
     // TODO: Handle invalid input
-    return;
+    return
   }
 
+  // Convert size threshold from KB to bytes for comparison
   const sizeThresholdInBytes = sizeThreshold * 1024;
 
   for (let dirPath of directoryPaths) {
     fs.readdir(dirPath, (err, files) => {
       if (err) {
         // TODO: Handle error
-        console.log('Unable to scan directory: ' + err);
-        return;
-      }
+        console.log('Unable to scan directory: ' + err)
+        return
+      } 
 
       files.forEach(async (file) => {
         if (['.jpg', '.jpeg', '.png', '.gif'].includes(path.extname(file).toLowerCase())) {
-          const filePath = path.join(dirPath, file);
+          const filePath = path.join(dirPath, file)
           const stats = fs.statSync(filePath);
 
-          const imageMetadata = await sharp(filePath).metadata();
+          const imageMetadata = await sharp(filePath).metadata()
 
+          // Only process files larger than the threshold
           if(stats.size > sizeThresholdInBytes && (imageMetadata.width > dimensionThreshold || imageMetadata.height > dimensionThreshold)) {
-            const outputPath = path.join(dirPath, 'big_' + file);
-            fs.renameSync(filePath, outputPath);
+            const outputPath = path.join(dirPath, 'big_' + file)
+            fs.renameSync(filePath, outputPath)
 
             await sharp(outputPath)
               .resize({ width: Math.round(imageMetadata.width * percentage / 100) })
               .toFormat('jpeg')
-              .toFile(filePath);
+              .toFile(filePath)
           }
         }
-      });
-    });
+      })
+    })
   }
 }
-
 async function resizeWebpImages() {
   try {
     const { filePaths: directoryPaths } = await dialog.showOpenDialog({
       properties: ['openDirectory']
     });
 
-    if (!directoryPaths) return;
+    if (!directoryPaths) return;  // Handle case where the user closes the dialog
 
     const percentage = await prompt({
       title: 'Enter percentage',
@@ -320,6 +317,7 @@ async function resizeWebpImages() {
     });
 
     if (isNaN(percentage)) {
+      // Handle invalid input, maybe show a dialog or log it
       console.error("Invalid percentage value provided");
       return;
     }
@@ -335,11 +333,14 @@ async function resizeWebpImages() {
           if (path.extname(file).toLowerCase() === '.webp') {
             const filePath = path.join(dirPath, file);
             
+            // Rename the original file to have "old_" prefix
             const oldFilePath = path.join(dirPath, 'old_' + file);
             fs.renameSync(filePath, oldFilePath);
 
+            // Get image metadata
             const imageMetadata = await sharp(oldFilePath).metadata();
 
+            // Resize the image and save it with its original name
             await sharp(oldFilePath)
               .resize({ width: Math.round(imageMetadata.width * percentage / 100) })
               .toFormat('webp')
@@ -351,20 +352,7 @@ async function resizeWebpImages() {
   } catch (error) {
     console.error("Error resizing webp images:", error);
   }
-}
-
-async function selectAndConvertImageToPNG() {
-  const { filePaths } = await dialog.showOpenDialog({
-    properties: ['openFile'],
-    filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'gif', 'webp'] }]
-  });
-
-  if (filePaths && filePaths.length > 0) {
-    const filePath = filePaths[0];
-    const outputPath = path.join(path.dirname(filePath), path.basename(filePath, path.extname(filePath)) + '.png');
-    await processImage(filePath, outputPath, 100, 'png');
-  }
-}
+} 
 
 ipcMain.on('make-image-square-700', (event) => {
   selectAndMakeImageSquare700();
@@ -430,9 +418,6 @@ ipcMain.on('convert-all-images-to-webp', async (event) => {
   }
 });
 
-ipcMain.on('convert-image-to-png', (event) => {
-  selectAndConvertImageToPNG();
-});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
