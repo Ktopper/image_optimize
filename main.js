@@ -25,12 +25,12 @@ async function processImage(filePath, outputPath, percentage, format) {
     const outputFormat = format || imageMetadata.format;
 
     const options = {};
-    if (['png', 'webp'].includes(outputFormat)) {
+    if (outputFormat === 'webp') {
       options.quality = 80; // Adjust quality for WebP
     }
 
     if (outputFormat === 'png') {
-      options.compressionLevel = 9; // Adjust compression level for PNG (0-9)
+      options.compressionLevel = 9; // Maximum compression for PNG
     }
 
     await sharp(filePath)
@@ -41,6 +41,7 @@ async function processImage(filePath, outputPath, percentage, format) {
     console.error("Error processing image:", error);
   }
 }
+
 
 async function selectAndResizeImages() {
   const { filePaths: directoryPaths } = await dialog.showOpenDialog({
@@ -405,27 +406,90 @@ async function selectAndResizeImagesOver1200px() {
       files.forEach(async (file) => {
         if (['.jpg', '.jpeg', '.png', '.gif'].includes(path.extname(file).toLowerCase())) {
           const filePath = path.join(dirPath, file);
-          const imageMetadata = await sharp(filePath).metadata();
+          try {
+            const imageMetadata = await sharp(filePath).metadata();
 
-          if (imageMetadata.width > 1200) {
-            const tempFilePath = path.join(dirPath, 'temp_' + file);
+            if (imageMetadata.width > 1200 || imageMetadata.height > 800) {
+              const tempFilePath = path.join(dirPath, 'temp_' + file);
 
-            // Rename the original file to a temporary file
-            fs.renameSync(filePath, tempFilePath);
+              // Rename the original file to a temporary file
+              fs.renameSync(filePath, tempFilePath);
 
-            // Resize the image and save it back to the original file name
-            await sharp(tempFilePath)
-              .resize({ width: 1200 })
-              .toFile(filePath);
+              // Resize the image and save it back to the original file name
+              let resizeOptions = {};
+              if (imageMetadata.width > 1200) {
+                resizeOptions.width = 1200;
+              }
+              if (imageMetadata.height > 800) {
+                resizeOptions.height = 800;
+              }
 
-            // Remove the temporary file
-            fs.unlinkSync(tempFilePath);
+              await sharp(tempFilePath)
+                .resize(resizeOptions)
+                .toFile(filePath);
+
+              // Remove the temporary file
+              fs.unlinkSync(tempFilePath);
+            }
+          } catch (error) {
+            console.error('Error processing image:', error);
           }
         }
       });
     });
   }
 }
+async function optimizeImagesInFolder() {
+  const { filePaths: directoryPaths } = await dialog.showOpenDialog({
+    properties: ['openDirectory']
+  });
+
+  for (let dirPath of directoryPaths) {
+    fs.readdir(dirPath, (err, files) => {
+      if (err) {
+        console.log('Unable to scan directory: ' + err);
+        return;
+      }
+
+      files.forEach(async (file) => {
+        const ext = path.extname(file).toLowerCase();
+        if (['.png', '.webp'].includes(ext)) {
+          const filePath = path.join(dirPath, file);
+          const tempFilePath = path.join(dirPath, 'temp_' + file);
+
+          // Rename the original file to a temporary file
+          fs.renameSync(filePath, tempFilePath);
+
+          try {
+            const options = {};
+            if (ext === '.png') {
+              options.compressionLevel = 9; // Maximum compression for PNG
+            } else if (ext === '.webp') {
+              options.quality = 80; // Adjust quality for WebP
+            }
+
+            // Optimize the image and save it back to the original file name
+            await sharp(tempFilePath)
+              .toFormat(ext === '.png' ? 'png' : 'webp', options)
+              .toFile(filePath);
+
+            // Remove the temporary file
+            fs.unlinkSync(tempFilePath);
+          } catch (error) {
+            console.error('Error optimizing image:', error);
+            // If an error occurs, restore the original file
+            fs.renameSync(tempFilePath, filePath);
+          }
+        }
+      });
+    });
+  }
+}
+
+ipcMain.on('optimize-images', (event) => {
+  optimizeImagesInFolder();
+});
+
 
 
 ipcMain.on('make-image-square-700', (event) => {

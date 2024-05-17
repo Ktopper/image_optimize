@@ -30,6 +30,10 @@
     <h2>Resize Images Over 1200px</h2>
     <button id="resizeImagesOver1200pxButton">Resize Images Over 1200px</button>
   </div>
+  <div class="button-block">
+    <h2>Optimize Image Compression</h2>
+    <button id="optimizeImagesButton">Optimize Compression for PNG and WebP</button>
+  </div>
   <script>
     const { ipcRenderer } = require("electron");
 
@@ -80,6 +84,10 @@
 
     document.getElementById("resizeImagesOver1200pxButton").addEventListener("click", () => {
       ipcRenderer.send("resize-images-over-1200px");
+    });
+
+    document.getElementById("optimizeImagesButton").addEventListener("click", () => {
+      ipcRenderer.send("optimize-images");
     });
   </script>
 </body>
