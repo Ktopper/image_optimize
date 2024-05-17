@@ -17,6 +17,7 @@
     <button id="convertSingleImageToWebPButton">Convert <b>Single</b> Image to WebP</button>
     <button id="convertAllImagesToWebPButton">Convert <b>All</b> Images to WebP</button>
     <button id="convertImageToPNGButton">Convert <b>Single</b> Image to PNG</button>
+    <button id="convertAllImagesToPNGButton">Convert <b>All</b> Images to PNG</button>
     <button id="resizeWebpButton"><b>Resize</b> .Webp Images</button>
   </div>
   <div class="button-block">
@@ -24,6 +25,10 @@
     <button id="makeSquare700Button">Make 700x700 Square Image</button>
     <button id="makeSquareButton">Make <b>Square</b> Image</button>
     <button id="createFaviconButton">Create Favicon</button>
+  </div>
+  <div class="button-block">
+    <h2>Resize Images Over 1200px</h2>
+    <button id="resizeImagesOver1200pxButton">Resize Images Over 1200px</button>
   </div>
   <script>
     const { ipcRenderer } = require("electron");
@@ -52,6 +57,10 @@
       ipcRenderer.send("convert-image-to-png");
     });
 
+    document.getElementById("convertAllImagesToPNGButton").addEventListener("click", () => {
+      ipcRenderer.send("convert-all-images-to-png");
+    });
+
     document.getElementById("resizeWebpButton").addEventListener("click", () => {
       ipcRenderer.send("resize-webp-images");
     });
@@ -67,6 +76,10 @@
 
     document.getElementById("makeSquare700Button").addEventListener("click", () => {
       ipcRenderer.send("make-image-square-700");
+    });
+
+    document.getElementById("resizeImagesOver1200pxButton").addEventListener("click", () => {
+      ipcRenderer.send("resize-images-over-1200px");
     });
   </script>
 </body>

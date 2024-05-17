@@ -366,6 +366,68 @@ async function selectAndConvertImageToPNG() {
   }
 }
 
+async function selectAndConvertAllImagesToPNG() {
+  const { filePaths: directoryPaths } = await dialog.showOpenDialog({
+    properties: ['openDirectory']
+  });
+
+  if (directoryPaths && directoryPaths.length > 0) {
+    const dirPath = directoryPaths[0];
+    fs.readdir(dirPath, (err, files) => {
+      if (err) {
+        console.log('Unable to scan directory: ' + err);
+        return;
+      }
+
+      files.forEach(async (file) => {
+        if (['.jpg', '.jpeg', '.gif', '.webp'].includes(path.extname(file).toLowerCase())) {
+          const filePath = path.join(dirPath, file);
+          const outputPath = path.join(dirPath, path.basename(file, path.extname(file)) + '.png');
+          await processImage(filePath, outputPath, 100, 'png');
+        }
+      });
+    });
+  }
+}
+
+async function selectAndResizeImagesOver1200px() {
+  const { filePaths: directoryPaths } = await dialog.showOpenDialog({
+    properties: ['openDirectory']
+  });
+
+  for (let dirPath of directoryPaths) {
+    fs.readdir(dirPath, (err, files) => {
+      if (err) {
+        console.log('Unable to scan directory: ' + err);
+        return;
+      }
+
+      files.forEach(async (file) => {
+        if (['.jpg', '.jpeg', '.png', '.gif'].includes(path.extname(file).toLowerCase())) {
+          const filePath = path.join(dirPath, file);
+          const imageMetadata = await sharp(filePath).metadata();
+
+          if (imageMetadata.width > 1200) {
+            const tempFilePath = path.join(dirPath, 'temp_' + file);
+
+            // Rename the original file to a temporary file
+            fs.renameSync(filePath, tempFilePath);
+
+            // Resize the image and save it back to the original file name
+            await sharp(tempFilePath)
+              .resize({ width: 1200 })
+              .toFile(filePath);
+
+            // Remove the temporary file
+            fs.unlinkSync(tempFilePath);
+          }
+        }
+      });
+    });
+  }
+}
+
+
 ipcMain.on('make-image-square-700', (event) => {
   selectAndMakeImageSquare700();
 });
@@ -432,6 +494,14 @@ ipcMain.on('convert-all-images-to-webp', async (event) => {
 
 ipcMain.on('convert-image-to-png', (event) => {
   selectAndConvertImageToPNG();
+});
+
+ipcMain.on('convert-all-images-to-png', (event) => {
+  selectAndConvertAllImagesToPNG();
+});
+
+ipcMain.on('resize-images-over-1200px', (event) => {
+  selectAndResizeImagesOver1200px();
 });
 
 app.on('window-all-closed', () => {
