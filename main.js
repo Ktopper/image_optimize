@@ -38,7 +38,7 @@ async function processImage(filePath, outputPath, percentage, format) {
       .toFormat(outputFormat, options)
       .toFile(outputPath);
   } catch (error) {
-    console.error("Error processing image:", error);
+    console.error("Error process image:", error);
   }
 }
 
