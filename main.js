@@ -26,7 +26,7 @@ async function processImage(filePath, outputPath, percentage, format) {
 
     const options = {};
     if (outputFormat === 'webp') {
-      options.quality = 80; // Adjust quality for WebP
+      options.quality = 100; // Adjust quality for WebP
     }
 
     if (outputFormat === 'png') {
