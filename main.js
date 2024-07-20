@@ -41,8 +41,6 @@ async function processImage(filePath, outputPath, percentage, format) {
     console.error("Error process image:", error);
   }
 }
-
-
 async function selectAndResizeImages() {
   const { filePaths: directoryPaths } = await dialog.showOpenDialog({
     properties: ['openDirectory']
