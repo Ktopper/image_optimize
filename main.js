@@ -1,118 +1,143 @@
 const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const sharp = require('sharp');
-const fs = require('fs');
+const fs = require('fs').promises;
 const path = require('path');
 const prompt = require('electron-prompt');
 
 function createWindow() {
-  const win = new BrowserWindow({
-    width: 800,
-    height: 600,
-    webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-    },
-  });
-
-  win.loadFile('index.html');
-}
+    const win = new BrowserWindow({
+      width: 800,
+      height: 600,
+      webPreferences: {
+        contextIsolation: true,
+        preload: path.join(__dirname, 'preload.js'),
+      },
+    });
+  
+    win.loadFile('index.html');
+  }
 
 app.whenReady().then(createWindow);
 
 async function processImage(filePath, outputPath, percentage, format) {
   try {
-    const imageMetadata = await sharp(filePath).metadata();
-    const outputFormat = format || imageMetadata.format;
+    const image = sharp(filePath);
+    const metadata = await image.metadata();
+    const outputFormat = format || metadata.format;
 
-    const options = {};
-    if (outputFormat === 'webp') {
-      options.quality = 100; // Adjust quality for WebP
-    }
+    const options = {
+      webp: { quality: 80 },
+      png: { compressionLevel: 9 },
+      jpeg: { quality: 80 },
+    };
 
-    if (outputFormat === 'png') {
-      options.compressionLevel = 9; // Maximum compression for PNG
-    }
-
-    await sharp(filePath)
-      .resize({ width: Math.round(imageMetadata.width * percentage / 100) })
-      .toFormat(outputFormat, options)
+    await image
+      .resize({ width: Math.round(metadata.width * percentage / 100) })
+      .toFormat(outputFormat, options[outputFormat])
       .toFile(outputPath);
   } catch (error) {
-    console.error("Error process image:", error);
+    console.error("Error processing image:", error);
   }
 }
-async function selectAndResizeImages() {
-  const { filePaths: directoryPaths } = await dialog.showOpenDialog({
-    properties: ['openDirectory']
-  });
 
-  const percentage = await prompt({
-    title: 'Enter percentage',
-    label: 'Enter the percentage (in %) to resize the images to:',
-    value: '50',
-    inputAttrs: {
-      type: 'number'
-    },
+async function processImagesInDirectory(dirPath, callback) {
+  try {
+    const files = await fs.readdir(dirPath);
+    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    
+    for (const file of files) {
+      if (imageExtensions.includes(path.extname(file).toLowerCase())) {
+        const filePath = path.join(dirPath, file);
+        await callback(filePath);
+      }
+    }
+  } catch (error) {
+    console.error('Error processing directory:', error);
+  }
+}
+
+async function promptForValue(options) {
+  return prompt({
+    title: options.title,
+    label: options.label,
+    value: options.defaultValue,
+    inputAttrs: { type: 'number' },
     type: 'input'
   });
+}
 
-  if (isNaN(percentage)) {
-    // TODO: Handle invalid input
-    return;
-  }
 
-  for (let dirPath of directoryPaths) {
-    fs.readdir(dirPath, (err, files) => {
-      if (err) {
-        // TODO: Handle error
-        console.log('Unable to scan directory: ' + err);
-        return;
-      }
 
-      files.forEach(async (file) => {
-        if (['.jpg', '.jpeg', '.png', '.gif'].includes(path.extname(file).toLowerCase())) {
-          const filePath = path.join(dirPath, file);
-          const imageMetadata = await sharp(filePath).metadata();
-
-          const outputPath = path.join(dirPath, 'big_' + file);
-          fs.renameSync(filePath, outputPath);
-
-          await sharp(outputPath)
-            .resize({ width: Math.round(imageMetadata.width * percentage / 100) })
-            .toFormat('jpeg')
-            .toFile(filePath);
-        }
+async function resizeImages(event, { isMultiple = true, percentage = null, sizeThreshold = null, dimensionThreshold = null }) {
+    try {
+      const directoryPaths = await dialog.showOpenDialog({
+        properties: [isMultiple ? 'openDirectory' : 'openFile'],
+        filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] }],
       });
-    });
+  
+      if (!directoryPaths.filePaths.length) return;
+  
+      percentage = percentage || await promptForValue({
+        title: 'Enter percentage',
+        label: 'Enter the percentage (in %) to resize the images to:',
+        defaultValue: '75'
+      });
+  
+      if (isNaN(percentage)) throw new Error("Invalid percentage value");
+  
+      const processImage = async (filePath) => {
+        const stats = await fs.stat(filePath);
+        const metadata = await sharp(filePath).metadata();
+  
+        if (!sizeThreshold || !dimensionThreshold || 
+            (stats.size > sizeThreshold * 1024 && 
+             (metadata.width > dimensionThreshold || metadata.height > dimensionThreshold))) {
+          const dir = path.dirname(filePath);
+          const ext = path.extname(filePath);
+          const baseName = path.basename(filePath, ext);
+          const bigFilePath = path.join(dir, `big_${baseName}${ext}`);
+          
+          // Rename original file to big_filename
+          await fs.rename(filePath, bigFilePath);
+  
+          // Create resized image with original filename
+          await sharp(bigFilePath)
+            .resize({ width: Math.round(metadata.width * percentage / 100) })
+            .toFile(filePath);
+  
+          console.log(`Resized image saved as ${filePath}, original saved as ${bigFilePath}`);
+        }
+      };
+  
+      if (isMultiple) {
+        for (const dirPath of directoryPaths.filePaths) {
+          await processImagesInDirectory(dirPath, processImage);
+        }
+      } else {
+        await processImage(directoryPaths.filePaths[0]);
+      }
+    } catch (error) {
+      console.error("Error resizing images:", error);
+    }
   }
-}
+  
 
-async function selectAndMakeImageSquare() {
-  const { filePaths } = await dialog.showOpenDialog({
-    properties: ['openFile'],
-    filters: [{ name: 'Images', extensions: ['jpg', 'png', 'gif', 'webp'] }]
-  });
 
-  if (filePaths && filePaths.length > 0) {
-    const filePath = filePaths[0]; // Assuming single selection
-    makeImageSquare(filePath);
-  }
-}
-
-async function makeImageSquare(filePath) {
+async function makeImageSquare(filePath, size = null) {
   try {
     const metadata = await sharp(filePath).metadata();
-    const size = Math.min(metadata.width, metadata.height);
+    const squareSize = size || Math.min(metadata.width, metadata.height);
 
     const outputPath = path.join(path.dirname(filePath), `square_${path.basename(filePath)}`);
     
     await sharp(filePath)
       .extract({
-        width: size,
-        height: size,
-        left: (metadata.width - size) / 2,
-        top: (metadata.height - size) / 2,
+        width: squareSize,
+        height: squareSize,
+        left: Math.round((metadata.width - squareSize) / 2),
+        top: Math.round((metadata.height - squareSize) / 2),
       })
+      .resize(size, size)
       .toFile(outputPath);
 
     console.log(`Square image created at ${outputPath}`);
@@ -121,30 +146,34 @@ async function makeImageSquare(filePath) {
   }
 }
 
-// Favicon
-async function selectAndCreateFavicon() {
+async function selectAndMakeImageSquare() {
   const { filePaths } = await dialog.showOpenDialog({
     properties: ['openFile'],
-    filters: [{ name: 'Images', extensions: ['jpg', 'png', 'gif', 'webp'] }]
+    filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] }]
   });
 
   if (filePaths && filePaths.length > 0) {
-    const filePath = filePaths[0];
-    createFavicon(filePath);
+    await makeImageSquare(filePaths[0]);
+  }
+}
+
+async function selectAndMakeImageSquare700() {
+  const { filePaths } = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] }]
+  });
+
+  if (filePaths && filePaths.length > 0) {
+    await makeImageSquare(filePaths[0], 700);
   }
 }
 
 async function createFavicon(filePath) {
   try {
-    const metadata = await sharp(filePath).metadata();
-    const size = Math.min(metadata.width, metadata.height);
-    const targetSize = 50;
-
     const outputPath = path.join(path.dirname(filePath), `favicon_${path.basename(filePath, path.extname(filePath))}.png`);
 
     await sharp(filePath)
-      .extract({ width: size, height: size, left: (metadata.width - size) / 2, top: (metadata.height - size) / 2 })
-      .resize(targetSize, targetSize)
+      .resize(32, 32)
       .toFormat('png')
       .toFile(outputPath);
 
@@ -154,149 +183,14 @@ async function createFavicon(filePath) {
   }
 }
 
-async function selectAndResizeSingleImage() {
+async function selectAndCreateFavicon() {
   const { filePaths } = await dialog.showOpenDialog({
     properties: ['openFile'],
-    filters: [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }]
-  });
-
-  const percentage = await prompt({
-    title: 'Enter percentage',
-    label: 'Enter the percentage (in %) to resize the image to:',
-    value: '75',
-    inputAttrs: {
-      type: 'number'
-    },
-    type: 'input'
-  });
-
-  if (isNaN(percentage)) {
-    // TODO: Handle invalid input
-    return;
-  }
-
-  for (let filePath of filePaths) {
-    const imageMetadata = await sharp(filePath).metadata();
-    const outputPath = path.join(path.dirname(filePath), 'big_' + path.basename(filePath));
-    
-    fs.renameSync(filePath, outputPath);
-    
-    await sharp(outputPath)
-      .resize({ width: Math.round(imageMetadata.width * percentage / 100) })
-      .toFormat('jpeg')
-      .toFile(filePath);
-  }
-}
-
-async function selectAndMakeImageSquare700() {
-  const { filePaths } = await dialog.showOpenDialog({
-    properties: ['openFile'],
-    filters: [{ name: 'Images', extensions: ['jpg', 'png', 'gif', 'webp'] }]
+    filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] }]
   });
 
   if (filePaths && filePaths.length > 0) {
-    const filePath = filePaths[0];
-    makeImageSquareAndResize(filePath);
-  }
-}
-
-async function makeImageSquareAndResize(filePath) {
-  try {
-    const metadata = await sharp(filePath).metadata();
-    const size = Math.min(metadata.width, metadata.height);
-    const targetSize = 700;
-    let extractSize = size;
-
-    if (size > targetSize) {
-      extractSize = targetSize;
-    }
-
-    const outputPath = path.join(path.dirname(filePath), `square_700_${path.basename(filePath)}`);
-    
-    let image = sharp(filePath)
-      .extract({ width: size, height: size, left: (metadata.width - size) / 2, top: (metadata.height - size) / 2 });
-
-    if (size > targetSize) {
-      image = image.resize(targetSize, targetSize);
-    }
-
-    await image.toFormat('webp').toFile(outputPath);
-
-    console.log(`700x700 square image created at ${outputPath}`);
-  } catch (error) {
-    console.error('Error making 700x700 square image:', error);
-  }
-}
-
-async function selectAndResizeLargeImages() {
-  const { filePaths: directoryPaths } = await dialog.showOpenDialog({
-    properties: ['openDirectory']
-  });
-
-  const percentage = await prompt({
-    title: 'Enter percentage',
-    label: 'Enter the percentage (in %) to resize the images to:',
-    value: '75',
-    inputAttrs: {
-      type: 'number'
-    },
-    type: 'input'
-  });
-
-  const sizeThreshold = await prompt({
-    title: 'Enter size threshold',
-    label: 'Enter the file size threshold (in KB) to resize images above:',
-    value: '200',
-    inputAttrs: {
-      type: 'number'
-    },
-    type: 'input'
-  });
-
-  const dimensionThreshold = await prompt({
-    title: 'Enter dimension threshold',
-    label: 'Enter the dimension threshold (in px) to resize images above:',
-    value: '800',
-    inputAttrs: {
-      type: 'number'
-    },
-    type: 'input'
-  });
-
-  if (isNaN(percentage) || isNaN(sizeThreshold) || isNaN(dimensionThreshold)) {
-    // TODO: Handle invalid input
-    return;
-  }
-
-  const sizeThresholdInBytes = sizeThreshold * 1024;
-
-  for (let dirPath of directoryPaths) {
-    fs.readdir(dirPath, (err, files) => {
-      if (err) {
-        // TODO: Handle error
-        console.log('Unable to scan directory: ' + err);
-        return;
-      }
-
-      files.forEach(async (file) => {
-        if (['.jpg', '.jpeg', '.png', '.gif'].includes(path.extname(file).toLowerCase())) {
-          const filePath = path.join(dirPath, file);
-          const stats = fs.statSync(filePath);
-
-          const imageMetadata = await sharp(filePath).metadata();
-
-          if(stats.size > sizeThresholdInBytes && (imageMetadata.width > dimensionThreshold || imageMetadata.height > dimensionThreshold)) {
-            const outputPath = path.join(dirPath, 'big_' + file);
-            fs.renameSync(filePath, outputPath);
-
-            await sharp(outputPath)
-              .resize({ width: Math.round(imageMetadata.width * percentage / 100) })
-              .toFormat('jpeg')
-              .toFile(filePath);
-          }
-        }
-      });
-    });
+    await createFavicon(filePaths[0]);
   }
 }
 
@@ -308,43 +202,22 @@ async function resizeWebpImages() {
 
     if (!directoryPaths) return;
 
-    const percentage = await prompt({
+    const percentage = await promptForValue({
       title: 'Enter percentage',
       label: 'Enter the percentage (in %) to resize the webp images to:',
-      value: '80',
-      inputAttrs: {
-        type: 'number'
-      },
-      type: 'input'
+      defaultValue: '80'
     });
 
-    if (isNaN(percentage)) {
-      console.error("Invalid percentage value provided");
-      return;
-    }
+    if (isNaN(percentage)) throw new Error("Invalid percentage value");
 
-    for (let dirPath of directoryPaths) {
-      fs.readdir(dirPath, (err, files) => {
-        if (err) {
-          console.error('Unable to scan directory: ' + err);
-          return;
+    for (const dirPath of directoryPaths) {
+      await processImagesInDirectory(dirPath, async (filePath) => {
+        if (path.extname(filePath).toLowerCase() === '.webp') {
+          const oldFilePath = path.join(path.dirname(filePath), 'old_' + path.basename(filePath));
+          await fs.rename(filePath, oldFilePath);
+          await processImage(oldFilePath, filePath, percentage, 'webp');
+          await fs.unlink(oldFilePath);
         }
-
-        files.forEach(async (file) => {
-          if (path.extname(file).toLowerCase() === '.webp') {
-            const filePath = path.join(dirPath, file);
-            
-            const oldFilePath = path.join(dirPath, 'old_' + file);
-            fs.renameSync(filePath, oldFilePath);
-
-            const imageMetadata = await sharp(oldFilePath).metadata();
-
-            await sharp(oldFilePath)
-              .resize({ width: Math.round(imageMetadata.width * percentage / 100) })
-              .toFormat('webp')
-              .toFile(filePath);
-          }
-        });
       });
     }
   } catch (error) {
@@ -352,219 +225,123 @@ async function resizeWebpImages() {
   }
 }
 
-async function selectAndConvertImageToPNG() {
-  const { filePaths } = await dialog.showOpenDialog({
-    properties: ['openFile'],
-    filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'gif', 'webp'] }]
-  });
+async function convertToFormat(isMultiple, targetFormat) {
+  try {
+    const options = {
+      properties: isMultiple ? ['openDirectory'] : ['openFile'],
+      filters: [{ name: 'Images', extensions: ['jpg', 'jpeg', 'png', 'gif', 'webp'] }]
+    };
 
-  if (filePaths && filePaths.length > 0) {
-    const filePath = filePaths[0];
-    const outputPath = path.join(path.dirname(filePath), path.basename(filePath, path.extname(filePath)) + '.png');
-    await processImage(filePath, outputPath, 100, 'png');
+    const { filePaths } = await dialog.showOpenDialog(options);
+
+    if (!filePaths.length) return;
+
+    const processFile = async (filePath) => {
+      const outputPath = path.join(
+        path.dirname(filePath), 
+        `${path.basename(filePath, path.extname(filePath))}.${targetFormat}`
+      );
+      await processImage(filePath, outputPath, 100, targetFormat);
+    };
+
+    if (isMultiple) {
+      for (const dirPath of filePaths) {
+        await processImagesInDirectory(dirPath, processFile);
+      }
+    } else {
+      await processFile(filePaths[0]);
+    }
+  } catch (error) {
+    console.error(`Error converting images to ${targetFormat}:`, error);
   }
 }
 
-async function selectAndConvertAllImagesToPNG() {
-  const { filePaths: directoryPaths } = await dialog.showOpenDialog({
-    properties: ['openDirectory']
-  });
+async function convertToWebp(isMultiple) {
+  await convertToFormat(isMultiple, 'webp');
+}
 
-  if (directoryPaths && directoryPaths.length > 0) {
-    const dirPath = directoryPaths[0];
-    fs.readdir(dirPath, (err, files) => {
-      if (err) {
-        console.log('Unable to scan directory: ' + err);
-        return;
-      }
+async function convertToPng(isMultiple) {
+  await convertToFormat(isMultiple, 'png');
+}
 
-      files.forEach(async (file) => {
-        if (['.jpg', '.jpeg', '.gif', '.webp'].includes(path.extname(file).toLowerCase())) {
-          const filePath = path.join(dirPath, file);
-          const outputPath = path.join(dirPath, path.basename(file, path.extname(file)) + '.png');
-          await processImage(filePath, outputPath, 100, 'png');
-        }
-      });
+async function resizeImagesOver1200px() {
+  try {
+    const { filePaths: directoryPaths } = await dialog.showOpenDialog({
+      properties: ['openDirectory']
     });
-  }
-}
 
-async function selectAndResizeImagesOver1200px() {
-  const { filePaths: directoryPaths } = await dialog.showOpenDialog({
-    properties: ['openDirectory']
-  });
+    for (const dirPath of directoryPaths) {
+      await processImagesInDirectory(dirPath, async (filePath) => {
+        const metadata = await sharp(filePath).metadata();
 
-  for (let dirPath of directoryPaths) {
-    fs.readdir(dirPath, (err, files) => {
-      if (err) {
-        console.log('Unable to scan directory: ' + err);
-        return;
-      }
-
-      files.forEach(async (file) => {
-        if (['.jpg', '.jpeg', '.png', '.gif'].includes(path.extname(file).toLowerCase())) {
-          const filePath = path.join(dirPath, file);
-          try {
-            const imageMetadata = await sharp(filePath).metadata();
-
-            if (imageMetadata.width > 1200 || imageMetadata.height > 800) {
-              const tempFilePath = path.join(dirPath, 'temp_' + file);
-
-              // Rename the original file to a temporary file
-              fs.renameSync(filePath, tempFilePath);
-
-              // Resize the image and save it back to the original file name
-              let resizeOptions = {};
-              if (imageMetadata.width > 1200) {
-                resizeOptions.width = 1200;
-              }
-              if (imageMetadata.height > 800) {
-                resizeOptions.height = 800;
-              }
-
-              await sharp(tempFilePath)
-                .resize(resizeOptions)
-                .toFile(filePath);
-
-              // Remove the temporary file
-              fs.unlinkSync(tempFilePath);
-            }
-          } catch (error) {
-            console.error('Error processing image:', error);
-          }
-        }
-      });
-    });
-  }
-}
-async function optimizeImagesInFolder() {
-  const { filePaths: directoryPaths } = await dialog.showOpenDialog({
-    properties: ['openDirectory']
-  });
-
-  for (let dirPath of directoryPaths) {
-    fs.readdir(dirPath, (err, files) => {
-      if (err) {
-        console.log('Unable to scan directory: ' + err);
-        return;
-      }
-
-      files.forEach(async (file) => {
-        const ext = path.extname(file).toLowerCase();
-        if (['.png', '.webp'].includes(ext)) {
-          const filePath = path.join(dirPath, file);
-          const tempFilePath = path.join(dirPath, 'temp_' + file);
-
-          // Rename the original file to a temporary file
-          fs.renameSync(filePath, tempFilePath);
+        if (metadata.width > 1200 || metadata.height > 800) {
+          const tempFilePath = path.join(path.dirname(filePath), 'temp_' + path.basename(filePath));
+          await fs.rename(filePath, tempFilePath);
 
           try {
-            const options = {};
-            if (ext === '.png') {
-              options.compressionLevel = 9; // Maximum compression for PNG
-            } else if (ext === '.webp') {
-              options.quality = 80; // Adjust quality for WebP
-            }
-
-            // Optimize the image and save it back to the original file name
             await sharp(tempFilePath)
-              .toFormat(ext === '.png' ? 'png' : 'webp', options)
+              .resize({
+                width: metadata.width > 1200 ? 1200 : undefined,
+                height: metadata.height > 800 ? 800 : undefined,
+                fit: 'inside'
+              })
               .toFile(filePath);
 
-            // Remove the temporary file
-            fs.unlinkSync(tempFilePath);
+            await fs.unlink(tempFilePath);
           } catch (error) {
-            console.error('Error optimizing image:', error);
-            // If an error occurs, restore the original file
-            fs.renameSync(tempFilePath, filePath);
+            console.error('Error processing image:', error);
+            await fs.rename(tempFilePath, filePath);
           }
         }
       });
-    });
+    }
+  } catch (error) {
+    console.error('Error resizing images over 1200px:', error);
   }
 }
 
-ipcMain.on('optimize-images', (event) => {
-  optimizeImagesInFolder();
-});
+async function optimizeImagesInFolder() {
+  try {
+    const { filePaths: directoryPaths } = await dialog.showOpenDialog({
+      properties: ['openDirectory']
+    });
 
+    for (const dirPath of directoryPaths) {
+      await processImagesInDirectory(dirPath, async (filePath) => {
+        const ext = path.extname(filePath).toLowerCase();
+        if (['.png', '.webp'].includes(ext)) {
+          const tempFilePath = path.join(path.dirname(filePath), 'temp_' + path.basename(filePath));
+          await fs.rename(filePath, tempFilePath);
 
-
-ipcMain.on('make-image-square-700', (event) => {
-  selectAndMakeImageSquare700();
-});
-
-ipcMain.on('make-image-square', (event) => {
-  console.log('Received make-image-square event');
-  selectAndMakeImageSquare();
-});
-
-ipcMain.on('create-favicon', (event) => {
-  selectAndCreateFavicon();
-});
-
-ipcMain.on('resize-webp-images', (event) => {
-  resizeWebpImages();
-});
-
-ipcMain.on('resize-single-image', (event) => {
-  selectAndResizeSingleImage();
-});
-
-ipcMain.on('resize-all-images', (event) => {
-  selectAndResizeImages();
-});
-
-ipcMain.on('resize-large-images', (event) => {
-  selectAndResizeLargeImages();
-});
-
-ipcMain.on('convert-single-image-to-webp', async (event) => {
-  const { filePaths } = await dialog.showOpenDialog({
-    properties: ['openFile'],
-    filters: [{ name: 'Images', extensions: ['jpg', 'png', 'gif'] }],
-  });
-
-  filePaths.forEach(async filePath => {
-    const outputPath = path.join(path.dirname(filePath), path.basename(filePath, path.extname(filePath)) + '.webp');
-    await processImage(filePath, outputPath, 100, 'webp');
-  });
-});
-
-ipcMain.on('convert-all-images-to-webp', async (event) => {
-  const { filePaths: directoryPaths } = await dialog.showOpenDialog({
-    properties: ['openDirectory'],
-  });
-
-  for (let dirPath of directoryPaths) {
-    fs.readdir(dirPath, (err, files) => {
-      if (err) {
-        console.log('Unable to scan directory: ' + err);
-        return;
-      }
-      
-      files.forEach(async file => {
-        if (['.jpg', '.jpeg', '.png', '.gif'].includes(path.extname(file).toLowerCase())) {
-          const filePath = path.join(dirPath, file);
-          const outputPath = path.join(dirPath, path.basename(file, path.extname(file)) + '.webp');
-          await processImage(filePath, outputPath, 100, 'webp');
+          try {
+            await processImage(tempFilePath, filePath, 100, ext.slice(1));
+            await fs.unlink(tempFilePath);
+          } catch (error) {
+            console.error('Error optimizing image:', error);
+            await fs.rename(tempFilePath, filePath);
+          }
         }
       });
-    });
+    }
+  } catch (error) {
+    console.error('Error optimizing images:', error);
   }
-});
+}
 
-ipcMain.on('convert-image-to-png', (event) => {
-  selectAndConvertImageToPNG();
-});
-
-ipcMain.on('convert-all-images-to-png', (event) => {
-  selectAndConvertAllImagesToPNG();
-});
-
-ipcMain.on('resize-images-over-1200px', (event) => {
-  selectAndResizeImagesOver1200px();
-});
+// IPC Handlers
+ipcMain.handle('optimize-images', () => optimizeImagesInFolder());
+ipcMain.handle('make-image-square-700', () => selectAndMakeImageSquare700());
+ipcMain.handle('make-image-square', () => selectAndMakeImageSquare());
+ipcMain.handle('create-favicon', () => selectAndCreateFavicon());
+ipcMain.handle('resize-webp-images', () => resizeWebpImages());
+ipcMain.handle('resize-single-image', (event) => resizeImages(event, { isMultiple: false }));
+ipcMain.handle('resize-all-images', (event) => resizeImages(event, { isMultiple: true }));
+ipcMain.handle('resize-large-images', (event) => resizeImages(event, { isMultiple: true, sizeThreshold: 200, dimensionThreshold: 800 }));
+ipcMain.handle('convert-single-image-to-webp', () => convertToWebp(false));
+ipcMain.handle('convert-all-images-to-webp', () => convertToWebp(true));
+ipcMain.handle('convert-image-to-png', () => convertToPng(false));
+ipcMain.handle('convert-all-images-to-png', () => convertToPng(true));
+ipcMain.handle('resize-images-over-1200px', () => resizeImagesOver1200px());
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

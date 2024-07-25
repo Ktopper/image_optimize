@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Image Optimizer</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <h1>Image optimizer</h1>
+  <div class="button-block">
+    <h2>Resizes image(s) by an inputed %</h2>
+    <button id="resizeSingleImageButton">Resize <b>Single</b> Image</button>
+    <button id="resizeAllImagesButton">Resize <b>All</b> Images</button>
+    <button id="resizeLargeImagesButton">Resize <b>Large</b> Images</button>
+  </div>
+  <div class="button-block">
+    <h2>Convert Images</h2>
+    <button id="convertSingleImageToWebPButton">Convert <b>Single</b> Image to WebP</button>
+    <button id="convertAllImagesToWebPButton">Convert <b>All</b> Images to WebP</button>
+    <button id="convertImageToPNGButton">Convert <b>Single</b> Image to PNG</button>
+    <button id="convertAllImagesToPNGButton">Convert <b>All</b> Images to PNG</button>
+    <button id="resizeWebpButton"><b>Resize</b> .Webp Images</button>
+  </div>
+  <div class="button-block">
+    <h2>Make Image Square</h2>
+    <button id="makeSquare700Button">Make 700x700 Square Image</button>
+    <button id="makeSquareButton">Make <b>Square</b> Image</button>
+    <button id="createFaviconButton">Create Favicon</button>
+  </div>
+  <div class="button-block">
+    <h2>Resize Images Over 1200px</h2>
+    <button id="resizeImagesOver1200pxButton">Resize Images Over 1200px</button>
+  </div>
+  <div class="button-block">
+    <h2>Optimize Image Compression</h2>
+    <button id="optimizeImagesButton">Optimize Compression for PNG and WebP</button>
+  </div>
+  <script>
+    const { ipcRenderer } = require("electron");
+
+    document.getElementById("resizeSingleImageButton").addEventListener("click", () => {
+      ipcRenderer.send("resize-single-image");
+    });
+
+    document.getElementById("resizeAllImagesButton").addEventListener("click", () => {
+      ipcRenderer.send("resize-all-images");
+    });
+
+    document.getElementById("resizeLargeImagesButton").addEventListener("click", () => {
+      ipcRenderer.send("resize-large-images");
+    });
+
+    document.getElementById("convertSingleImageToWebPButton").addEventListener("click", () => {
+      ipcRenderer.send("convert-single-image-to-webp");
+    });
+
+    document.getElementById("convertAllImagesToWebPButton").addEventListener("click", () => {
+      ipcRenderer.send("convert-all-images-to-webp");
+    });
+
+    document.getElementById("convertImageToPNGButton").addEventListener("click", () => {
+      ipcRenderer.send("convert-image-to-png");
+    });
+
+    document.getElementById("convertAllImagesToPNGButton").addEventListener("click", () => {
+      ipcRenderer.send("convert-all-images-to-png");
+    });
+
+    document.getElementById("resizeWebpButton").addEventListener("click", () => {
+      ipcRenderer.send("resize-webp-images");
+    });
+
+    document.getElementById("createFaviconButton").addEventListener("click", () => {
+      ipcRenderer.send("create-favicon");
+    });
+
+    document.getElementById("makeSquareButton").addEventListener("click", () => {
+      ipcRenderer.send("make-image-square");
+      console.log("Make square button clicked");
+    });
+
+    document.getElementById("makeSquare700Button").addEventListener("click", () => {
+      ipcRenderer.send("make-image-square-700");
+    });
+
+    document.getElementById("resizeImagesOver1200pxButton").addEventListener("click", () => {
+      ipcRenderer.send("resize-images-over-1200px");
+    });
+
+    document.getElementById("optimizeImagesButton").addEventListener("click", () => {
+      ipcRenderer.send("optimize-images");
+    });
+  </script>
+</body>
+</html>
